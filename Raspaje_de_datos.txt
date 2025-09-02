@@ -1,0 +1,46 @@
+import pdfplumber
+import pandas as pd
+
+pdf_path = "reporte_ventas_grande.pdf"
+excel_path = "reporte_ventas_grande_columnas.xlsx"
+
+datos = []
+
+with pdfplumber.open(pdf_path) as pdf:
+    for i, page in enumerate(pdf.pages, start=1):
+        # extraer todas las palabras con posición
+        palabras = page.extract_words()  # cada palabra tiene x0, x1, top, bottom
+        # agrupamos por línea usando 'top'
+        lineas = {}
+        for p in palabras:
+            top = round(p['top'])  # redondeamos para agrupar por altura
+            if top not in lineas:
+                lineas[top] = []
+            lineas[top].append(p)
+        
+        # ordenar las líneas por altura
+        for top in sorted(lineas.keys()):
+            linea = lineas[top]
+            # ordenar palabras por posición X (horizontal)
+            linea = sorted(linea, key=lambda x: x['x0'])
+            # ahora asignamos columnas según posición X
+            producto = linea[0]['text']
+            cantidad = linea[1]['text'] if len(linea) > 1 else ''
+            precio_unitario = linea[2]['text'] if len(linea) > 2 else ''
+            total = linea[3]['text'] if len(linea) > 3 else ''
+            
+            datos.append({
+                "Producto": producto,
+                "Cantidad": cantidad,
+                "Precio Unitario": precio_unitario,
+                "Total": total,
+                "Pagina": i
+            })
+
+# Crear DataFrame
+df = pd.DataFrame(datos)
+
+# Guardar en Excel
+df.to_excel(excel_path, index=False)
+
+print(f"✅ Datos exportados a Excel: {excel_path}")
